@@ -30,12 +30,13 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.model.InterfaceWrapperHelper;
-import org.adempiere.pricing.api.IPriceListDAO;
-import org.adempiere.util.Services;
+import org.adempiere.pricing.api.ProductPriceQuery;
 import org.bmecat.bmecat._2005.DESCRIPTIONSHORT;
+import org.compiere.model.I_M_ProductPrice;
 import org.compiere.model.MProductPO;
 import org.compiere.model.MProductPrice;
 import org.compiere.model.MUOM;
@@ -54,7 +55,6 @@ import com.klst.mf.opentrans.MProduct;
 import com.klst.mf.opentrans.MUoM;
 import com.klst.opentrans.XmlReader;
 
-import de.metas.adempiere.model.I_M_ProductPrice;
 import de.metas.process.JavaProcess;
 import de.metas.process.ProcessInfoParameter;
 
@@ -323,13 +323,11 @@ public class CreateProductProcess extends JavaProcess {
 			int plvID = plv.getM_PriceList_Version_ID();
 			
 			// metasfresh: MProductPrice.get is deprecated -> changed to Query API
-			//MProductPrice price = MProductPrice.get(getCtx(), plvID, product.getM_Product_ID(), get_TrxName());
-			final I_M_ProductPrice pp = Services.get(IPriceListDAO.class).retrieveProductPriceOrNull(plv, product.getM_Product_ID());
-			MProductPrice price = null;
-			if(pp != null) {
-				price = (MProductPrice)InterfaceWrapperHelper.getPO(pp);
-			}
-			if(price == null) {
+			Optional<I_M_ProductPrice> pp = ProductPriceQuery.retrieveMainProductPriceIfExists(plv, product.getM_Product_ID());
+			I_M_ProductPrice price = null;
+			if(pp.isPresent()) {
+				price = pp.get();
+			} else {
 				price = new MProductPrice(getCtx(), plvID, product.getM_Product_ID(), get_TrxName());
 			}
 			// wg. FEHLER: NULL-Wert in Spalte „c_uom_id“ verletzt Not-Null-Constraint
@@ -346,9 +344,12 @@ public class CreateProductProcess extends JavaProcess {
 				price.setC_TaxCategory_ID(product.getTaxCategory(tax).getC_TaxCategory_ID());
 			}
 			
-			price.setPrices(pricepp, pricepp, pricepp); // (PriceList, PriceStd, PriceLimit)
+			//price.setPrices(pricepp, pricepp, pricepp); // (PriceList, PriceStd, PriceLimit)
+			price.setPriceLimit(pricepp);
+			price.setPriceList(pricepp);
+			price.setPriceStd(pricepp);
 			// auf mierp c_taxcategory_id in TABLE m_productprice 
-			price.saveEx(this.get_TrxName());
+			((MProductPrice)InterfaceWrapperHelper.getPO(price)).saveEx(this.get_TrxName());
 			
 			log.info("createProductIfNew: product="+product + " pPO="+pPO + " price="+price);
 		} else {

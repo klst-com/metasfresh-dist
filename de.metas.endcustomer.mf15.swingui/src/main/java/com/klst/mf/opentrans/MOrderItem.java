@@ -29,13 +29,14 @@ import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.adempiere.exceptions.AdempiereException;
 import org.adempiere.model.InterfaceWrapperHelper;
-import org.adempiere.pricing.api.IPriceListDAO;
-import org.adempiere.util.Services;
+import org.adempiere.pricing.api.ProductPriceQuery;
 import org.bmecat.bmecat._2005.DESCRIPTIONSHORT;
+import org.compiere.model.I_M_ProductPrice;
 import org.compiere.model.MOrderLine;
 import org.compiere.model.MProductPO;
 import org.compiere.model.MProductPrice;
@@ -46,7 +47,6 @@ import org.opentrans.xmlschema._2.PRODUCTID;
 import org.opentrans.xmlschema._2.PRODUCTPRICEFIX;
 import org.opentrans.xmlschema._2.TAXDETAILSFIX;
 
-import de.metas.adempiere.model.I_M_ProductPrice;
 
 public class MOrderItem extends MOrderLine
 {
@@ -180,27 +180,37 @@ public class MOrderItem extends MOrderLine
 			log.info("mapProduct: plv.M_PriceList_Version_ID={}",plv.getM_PriceList_Version_ID());
 		}
 		int plvID = plv.getM_PriceList_Version_ID();
-		final I_M_ProductPrice pp = Services.get(IPriceListDAO.class).retrieveProductPriceOrNull(plv, product.getM_Product_ID());
-		MProductPrice price = null;
-		if(pp != null) {
-			price = (MProductPrice)InterfaceWrapperHelper.getPO(pp);
-		}
-		if(price == null) {
+		Optional<I_M_ProductPrice> pp = ProductPriceQuery.retrieveMainProductPriceIfExists(plv, product.getM_Product_ID());
+		I_M_ProductPrice price = null;
+		if(pp.isPresent()) {
+			price = pp.get();
+		} else {
 			price = new MProductPrice(getCtx(), plvID, product.getM_Product_ID(), get_TrxName());
 		}
-		price.setPrices(pricepp, pricepp, pricepp); // (PriceList, PriceStd, PriceLimit)		
-		price.saveEx(this.get_TrxName());
+		// wg. FEHLER: NULL-Wert in Spalte „c_uom_id“ verletzt Not-Null-Constraint
+		if(price.getC_UOM() == null) {
+			price.setC_UOM_ID(unit.getC_UOM_ID());
+		}
+
+		// in mf ist das DM anders: tax hängt an m_productprice.c_taxcategory_id und liefert
+		// wg. FEHLER: Einfügen oder Aktualisieren in Tabelle „m_productprice“ verletzt Fremdschlüssel-Constraint „ctaxcategory_mproductprice“ 
+		//     Detail: Schlüssel (c_taxcategory_id)=(0) ist nicht in Tabelle „c_taxcategory“ vorhanden.
+		if(tax==null) {
+			price.setC_TaxCategory_ID(product.getDefaultTaxCategory().getC_TaxCategory_ID());
+		} else {
+			price.setC_TaxCategory_ID(product.getTaxCategory(tax).getC_TaxCategory_ID());
+		}
+		
+		//price.setPrices(pricepp, pricepp, pricepp); // (PriceList, PriceStd, PriceLimit)
+		price.setPriceLimit(pricepp);
+		price.setPriceList(pricepp);
+		price.setPriceStd(pricepp);
+		((MProductPrice)InterfaceWrapperHelper.getPO(price)).saveEx(this.get_TrxName());
 		
 		this.setProduct(product);
 		this.setPrice(pricepp); // Use this Method if the Line UOM is the Product UOM 
 		product.saveEx(this.get_TrxName());
 		
-//		if(tax==null) {
-//			this.setC_TaxCategory(product.getDefaultTaxCategory());
-//		} else {
-//			this.setC_TaxCategory(product.getTaxCategory(tax));
-//		}
-
 		return product;
 	}
 
