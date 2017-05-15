@@ -118,9 +118,17 @@
 			<scope>provided</scope>
 		</dependency>
 
+		<!-- https://github.com/metasfresh/metasfresh/issues/523 -->
+		<!-- we need those classes in the webui-api and swing-UI in order to run the MD_Candidate_Request_PP_Order process -->
+		<dependency>
+			<groupId>de.metas.material</groupId>
+			<artifactId>metasfresh-material-dispo-commons</artifactId>
+			<version>${metasfresh.version}</version>
+			<type>jar</type>
+		</dependency>
+
 		<!-- needed to access microsoft COM components outlook,excel,... via groovy , see issue #695 -->
 		<dependency>
-<<<<<<< HEAD
 			<groupId>org.codehaus.groovy.modules.scriptom</groupId>
 			<artifactId>scriptom</artifactId>	<!-- Windows COM scripting for Groovy based on Java COM Bridge -->
 			<version>1.6.0</version>
@@ -137,12 +145,6 @@
 			<artifactId>jacob</artifactId>		<!-- java com bridge --> 
 			<version>1.18</version>
 			<scope>runtime</scope>
-=======
-			<groupId>de.metas.material</groupId>
-			<artifactId>metasfresh-material-dispo-commons</artifactId>
-			<version>${metasfresh.version}</version>
-			<type>jar</type>
->>>>>>> refs/heads/master
 		</dependency>
 
 		<!-- needed to access openTrans to compile packages com.klst.* -->
@@ -150,8 +152,8 @@
 			<groupId>opentrans</groupId>
 			<artifactId>opentrans</artifactId> 
 			<version>2.0</version>
-		</dependency>
-			
+		</dependency> 
+
 	</dependencies>
 
 	<build>
